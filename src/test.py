@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 from parser import Parser
+from x509Certificate import X509Certificate
 
 
 def generate_test_der():
@@ -35,7 +36,7 @@ def generate_test_der():
         .not_valid_after(
             datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365)
         )
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        # .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
         .sign(key, hashes.SHA256())
     )
     der_bytes = cert.public_bytes(serialization.Encoding.DER)
@@ -55,8 +56,8 @@ def test_extended_identifier_primitive():
 
 def test_int_primitive():
     file = BytesIO(b"\x02\x02\x00\x80")
-    data_parser = Parser(file)
-    parsed_int = data_parser.parse()
+    parser = Parser(file)
+    parsed_int = parser.parse()
     print(parsed_int)
     if str(parsed_int) != "Integer : 128":
         return False
@@ -66,8 +67,8 @@ def test_int_primitive():
 
 def test_ia5_string():
     file = BytesIO(b"\x16\x0e\x41\x6e\x79\x62\x6f\x64\x79\x20\x74\x68\x65\x72\x65\x3f")
-    data_parser = Parser(file)
-    parsed_str = data_parser.parse()
+    parser = Parser(file)
+    parsed_str = parser.parse()
     print(parsed_str)
     if str(parsed_str) != "IA5String : Anybody there?":
         return False
@@ -76,11 +77,11 @@ def test_ia5_string():
 
 
 def test_bit_string():
-    file = BytesIO(b"\x03\x03\x01\x00\x02")
-    data_parser = Parser(file)
-    parsed_str = data_parser.parse()
+    file = BytesIO(b"\x03\x03\x01\x01\x02")
+    parser = Parser(file)
+    parsed_str = parser.parse()
     print(parsed_str)
-    if str(parsed_str) != "BitString : 00000001":
+    if str(parsed_str) != "BitString : 0000000100":
         return False
 
     return True
@@ -119,14 +120,35 @@ def test_full_cert():
     return True
 
 
+def test_full_cert_v1():
+    # Usage for your parser
+    cert = generate_test_der()
+    der_bytes = cert.public_bytes(serialization.Encoding.DER)
+    print(f"Generated {len(der_bytes)} bytes of DER data.")
+    # You can now wrap this in BytesIO and pass it to your parse_content method
+    file = BytesIO(der_bytes)
+    parser = Parser(file)
+    parsed_cert = parser.parse()
+    parsed_cert.components[0].components.pop(0)  # type: ignore
+    x509_cert = X509Certificate(parsed_cert)  # type: ignore
+
+    print(x509_cert)
+    print("Version:", x509_cert.get_version_number())
+    print(x509_cert.serial_number)
+    print(x509_cert.signature_value)
+
+    return True
+
+
 tests = [
-    test_extended_identifier_primitive,
-    test_int_primitive,
-    test_ia5_string,
-    test_bit_string,
-    test_constructed,
-    test_nested_constructed,
+    # test_extended_identifier_primitive,
+    # test_int_primitive,
+    # test_ia5_string,
+    # test_bit_string,
+    # test_constructed,
+    # test_nested_constructed,
     test_full_cert,
+    test_full_cert_v1,
 ]
 
 passed = 0

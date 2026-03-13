@@ -15,9 +15,19 @@ CONSTRUCTION_OPTIONS = (PRIMITIVE, CONSTRUCTED)
 class ASN1(ABC):
     permitted_construction = None
 
-    def __init__(self, size: int = 0, **kwargs):
+    def __init__(
+        self,
+        size: int = 0,
+        label: str = "",
+        tag_class: int = 0,
+        tag_number: int = 0,
+        **kwargs,
+    ):
         # in bytes
         self.size = size
+        self.label = label
+        self.tag_class = tag_class
+        self.given_tag_number = tag_number
 
 
 class PrimitiveASN1(ASN1):
@@ -26,11 +36,18 @@ class PrimitiveASN1(ASN1):
     def __init__(self, data: bytes = b"", **kwargs):
         super().__init__(**kwargs)
         self.data: bytes = data
-        self.value = None
         self.value_decoded = False
+        self.value = None
 
     def _decode_data(self):
-        pass
+        self.value = self.data
+        self.value_decoded = True
+
+    def get_value(self):
+        self._decode_data()
+        if self.value:
+            return self.value
+        return self.data
 
     @staticmethod
     def parse_content(bytes: BytesIO, size: int):
@@ -38,7 +55,7 @@ class PrimitiveASN1(ASN1):
 
     def __str__(self):
         self._decode_data()
-        return self.__class__.__name__ + " : " + str(self.data.hex(" "))
+        return self.__class__.__name__ + " :== " + str(self.data.hex(" "))
 
 
 class ConstructedASN1(ASN1):
@@ -51,7 +68,9 @@ class ConstructedASN1(ASN1):
     def __str__(self):
         content = ",\n".join(str(c) for c in self.components)
         wrapped = textwrap.indent(content, "    ")
-        return f"{self.__class__.__name__} :== {{\n{wrapped}\n}}"
+        if self.label:
+            return f"{self.label} :== " + f"{self.__class__.__name__} {{\n{wrapped}\n}}"
+        return f"{self.__class__.__name__} {{\n{wrapped}\n}}"
 
 
 class Integer(PrimitiveASN1):
@@ -67,8 +86,14 @@ class Integer(PrimitiveASN1):
         self.value = int.from_bytes(self.data)
 
     def __str__(self):
-        self._decode_data()
-        return self.__class__.__name__ + " : " + str(self.value)
+        if self.label:
+            return (
+                f"{self.label} :== "
+                + self.__class__.__name__
+                + " "
+                + str(self.get_value())
+            )
+        return self.__class__.__name__ + " :== " + str(self.get_value())
 
 
 class BitString(PrimitiveASN1):
@@ -98,13 +123,14 @@ class BitString(PrimitiveASN1):
             return b""
 
     def __str__(self):
-        self._decode_data()
+        value = self.get_value()
         res = (
-            self.__class__.__name__
-            + " : "
-            + "".join(f"{byte:08b}" for byte in self.value[:5])
+            f"{self.label} :== "
+            + self.__class__.__name__
+            + " "
+            + "".join(f"{byte:08b}" for byte in value[:5])
         )
-        return res + f"... ({len(self.value)} bits)" if len(self.value) > 5 else res
+        return res + f"... ({len(value)} bits)" if len(value) > 5 else res
 
 
 class ObjectIdentifier(PrimitiveASN1):
@@ -123,8 +149,10 @@ class ObjectIdentifier(PrimitiveASN1):
             self.value += "." + str(byte)
 
     def __str__(self):
-        self._decode_data()
-        return self.__class__.__name__ + " : " + str(self.value)
+        value = self.get_value()
+        if self.label:
+            return f"{self.label} :== " + self.__class__.__name__ + " " + str(value)
+        return self.__class__.__name__ + " :== " + str(value)
 
 
 class IA5String(PrimitiveASN1):
@@ -140,8 +168,10 @@ class IA5String(PrimitiveASN1):
         self.value = self.data.decode("ascii")
 
     def __str__(self):
-        self._decode_data()
-        return self.__class__.__name__ + " : " + str(self.value)
+        value = self.get_value()
+        if self.label:
+            return f"{self.label} :== " + self.__class__.__name__ + " " + str(value)
+        return self.__class__.__name__ + " :== " + str(value)
 
 
 class Sequence(ConstructedASN1):

@@ -40,19 +40,19 @@ class Parser:
         construction = CONSTRUCTION_OPTIONS[construction_bit]
 
         # right most 5 bits marks tag type or whether it's stored in the next octet
-        tag_type = octet & ~(octet >> 5 << 5)
+        tag_number = octet & ~(octet >> 5 << 5)
 
         size = 1
         # get extended tag type value
         # 11111 means extended form
-        if tag_type == 31:
-            tag_type = 0
+        if tag_number == 31:
+            tag_number = 0
             for octet in _parse_extended_octets(bytes=bytes):
-                tag_type <<= 7
-                tag_type += octet & ~(1 << 7)
+                tag_number <<= 7
+                tag_number += octet & ~(1 << 7)
                 size += 1
 
-        return tag_class, construction, tag_type, size
+        return tag_class, construction, tag_number, size
 
     @staticmethod
     def _parse_length_octets(bytes: BytesIO) -> tuple[int, int]:
@@ -79,31 +79,37 @@ class Parser:
     def _parse_primitive_data(bytes: BytesIO, size: int) -> bytes:
         return bytes.read(size)
 
-    def _parse_primitive(self, tag_type: int, data_size, identifier_size: int):
+    def _parse_primitive(
+        self, tag_class: int, tag_number: int, data_size, identifier_size: int
+    ):
         ASN1_TYPE: type[PrimitiveASN1] | None = PTAG_TO_TYPE.get(
-            tag_type, PrimitiveASN1
+            tag_number, PrimitiveASN1
         )
         if not ASN1_TYPE or ASN1_TYPE.permitted_construction != PRIMITIVE:
             raise Exception(
-                f"Inconsistent construction and type tag of data {ASN1_TYPE}, {tag_type}"
+                f"Inconsistent construction and type tag of data {ASN1_TYPE}, {tag_number}"
             )
 
-        node = ASN1_TYPE(size=identifier_size + data_size)
+        node = ASN1_TYPE(
+            tag_class=tag_class, tag_number=tag_number, size=identifier_size + data_size
+        )
         node.data = ASN1_TYPE.parse_content(bytes=self.file, size=data_size)
         return node
 
     def _parse_constructed(
-        self, tag_type: int, data_size: int, identifier_size: int
+        self, tag_class: int, tag_number: int, data_size: int, identifier_size: int
     ) -> ConstructedASN1:
         ASN1_TYPE: type[ConstructedASN1] | None = CTAG_TO_TYPE.get(
-            tag_type, ConstructedASN1
+            tag_number, ConstructedASN1
         )
         if not ASN1_TYPE or ASN1_TYPE.permitted_construction != CONSTRUCTED:
             raise Exception(
-                f"Inconsistent construction and type tag of data type: {ASN1_TYPE}, tag_type: {tag_type}."
+                f"Inconsistent construction and type tag of data type: {ASN1_TYPE}, tag_number: {tag_number}."
             )
 
-        node = ASN1_TYPE(size=identifier_size + data_size)
+        node = ASN1_TYPE(
+            tag_class=tag_class, tag_number=tag_number, size=identifier_size + data_size
+        )
         length_remaining = data_size
         while length_remaining > 0:
             next_node = self.parse()
@@ -118,7 +124,7 @@ class Parser:
         return node
 
     def parse(self) -> ASN1:
-        tag_class, construction, tag_type, identifier_size = (
+        tag_class, construction, tag_number, identifier_size = (
             self._parse_identifier_octets(self.file)
         )
         if tag_class == 0:
@@ -129,9 +135,15 @@ class Parser:
 
         if construction == PRIMITIVE:
             return self._parse_primitive(
-                tag_type=tag_type, data_size=data_size, identifier_size=identifier_size
+                tag_class=tag_class,
+                tag_number=tag_number,
+                data_size=data_size,
+                identifier_size=identifier_size,
             )
 
         return self._parse_constructed(
-            tag_type=tag_type, data_size=data_size, identifier_size=identifier_size
+            tag_class=tag_class,
+            tag_number=tag_number,
+            data_size=data_size,
+            identifier_size=identifier_size,
         )
