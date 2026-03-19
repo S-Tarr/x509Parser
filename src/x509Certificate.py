@@ -1,4 +1,7 @@
+from io import BytesIO
+
 from asn1 import ASN1, ConstructedASN1, Integer, PrimitiveASN1
+from parser import Parser
 
 
 class X509Certificate:
@@ -20,7 +23,14 @@ class X509Certificate:
         "extensions": 9,
     }
 
-    def __init__(self, certificate: ConstructedASN1):
+    def __init__(self, certificate: ASN1):
+        self._assign_components(certificate=certificate)
+
+    @classmethod
+    def from_bytes(cls, bytes: BytesIO):
+        cls(certificate=Parser(bytes).parse())
+
+    def _assign_components(self, certificate: ASN1):
         self.certificate = self.validated_certificate(certificate)
         self.certificate.label = "Certificate"
 
@@ -42,7 +52,7 @@ class X509Certificate:
         self.extensions = self._get_extensions()
 
     @staticmethod
-    def validated_certificate(node: ConstructedASN1) -> ConstructedASN1:
+    def validated_certificate(node: ASN1) -> ConstructedASN1:
         if node and isinstance(node, ConstructedASN1):
             return node
         raise ValueError("Invalid certificate")

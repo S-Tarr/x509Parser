@@ -127,8 +127,6 @@ class Parser:
         tag_class, construction, tag_number, identifier_size = (
             self._parse_identifier_octets(self.file)
         )
-        if tag_class == 0:
-            pass
 
         data_size, length_size = self._parse_length_octets(self.file)
         identifier_size += length_size
