@@ -74,7 +74,7 @@ Certificate :== Sequence {
 ## Future
 ### Editing
 With all the values turned into objects and labeled, adding the functionality for editing the values seems like a useful next step.
-The thought is to store the offsets of the each asn1 object in the original certificate and make edits within the original file. This could keep from having to generate an all new certificate. There will be some difficulties with tracking the changing offsets as fields shrink and get bigger.
+The thought is to store the offsets of the each asn1 object in the original certificate and make edits within the original file. This could keep from having to generate an all new certificate. There will be some difficulties with tracking the changing offsets as fields shrink and get bigger so it's expected to be a large change.
 
 ### More types
 There are only a small set of ASN1 types implemented right now and it would be make the project more valuable if more were added
