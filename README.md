@@ -7,12 +7,12 @@
 ## Usage
 ```python
 parser = Parser(open("cert.der"))
-parsed = parser.parse()
+parsed = parser.parse() # Returns ASN1 object tree
 
-cert = X509Certificate(parsed)
+cert = X509Certificate(parsed) # Returns mapped ASN1 obejcts to x509 structure and validates
 version = cert.get_version_number()
 ```
-## printed parsed Certificate Example
+## Printed parsed Certificate example
 ```
 Certificate :== Sequence {
     tbsCertificate :== Sequence {
@@ -79,5 +79,5 @@ The thought is to store the offsets of the each asn1 object in the original cert
 ### More types
 There are only a small set of ASN1 types implemented right now and it would be make the project more valuable if more were added
 
-### Usage
+### Better Usage 
 Currently the repo will have to be cloned to use any of this, but if in the future features like editing are added, the project should be added to PyPi.
